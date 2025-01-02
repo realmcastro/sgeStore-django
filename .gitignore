@@ -1,0 +1,36 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.db
+
+# Ambiente virtual
+env/
+venv/
+*.venv/
+
+# Arquivos de banco de dados
+sgeStore_db
+# Arquivos de log
+*.log
+
+# IDEs
+.idea/
+.vscode/
+
+# Migrações (se você não quiser versioná-las)
+myapp/migrations/
+
+# Arquivos de dependências (se você não quiser versioná-los)
+Pipfile.lock
+poetry.lock
+
+# Arquivos de configuração do Django (sensíveis)
+local_settings.py
+
+# Arquivos de cobertura de teste
+.coverage
+
+# Outros arquivos temporários
+*.pid
