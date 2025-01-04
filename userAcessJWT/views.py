@@ -82,3 +82,32 @@ def login(request):
             return Response({"error": "Invalid credentials."}, status=status.HTTP_401_UNAUTHORIZED)
     except CustomUser.DoesNotExist:
         return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+
+@role_required('mod')
+@api_view(['POST'])
+def list_users(request):
+
+    role = request.data.get('role') 
+
+    try:
+        if role:
+            users = CustomUser.objects.filter(role=role)
+        else:
+            users = CustomUser.objects.all()
+
+        user_data = [
+            {
+                "id": user.id,
+                "username": user.username,
+                "date_added": user.date_added,
+                "last_login": user.last_login,
+                "role": user.role
+            }
+            for user in users
+        ]
+
+        return Response({"users": user_data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'userAcessJWT',
     'stockProducts',
+    'salesRecord',
     'rest_framework',
     'rest_framework_simplejwt',
     
