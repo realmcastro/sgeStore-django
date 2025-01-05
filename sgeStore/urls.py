@@ -21,5 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('user/', include('userAcessJWT.urls')),
     path('stock/', include('stockProducts.urls')),
-    path('sales/', include('salesRecord.urls'))
+    path('sales/', include('salesRecord.urls')),
+    path('data/', include('dataAnalysis.urls'))
 ]
