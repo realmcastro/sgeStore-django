@@ -28,9 +28,9 @@ def role_required(required_role):
                     return JsonResponse({"error":"Você precisa ser administrador, moderador ou usuário para acessar essa página."}, status=403)
             
             except jwt.ExpiredSignatureError:
-                return HttpResponseForbidden("Token expirado.")
+                return HttpResponseForbidden("Token expirado.", status=403)
             except jwt.InvalidTokenError:
-                return HttpResponseForbidden("Token inválido.")
+                return HttpResponseForbidden("Token inválido.", status=403)
             
             return view_func(request, *args, **kwargs)
 
