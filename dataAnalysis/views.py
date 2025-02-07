@@ -7,8 +7,11 @@ from pyecharts.charts import Bar
 from pyecharts import options as opts
 from rest_framework.decorators import api_view
 from userAcessJWT.models import CustomUser
+from django.utils import timezone
 from django.db.models.functions import TruncDate, TruncWeek, TruncMonth, TruncYear
+from sgeStore.decorators import role_required
 
+@role_required('user')
 @api_view(['POST'])
 def sales_chart(request):
     start_date = request.data.get('start_date', None)
@@ -43,8 +46,8 @@ def sales_chart(request):
     )
 
     # Preparar os dados para a linha de "Renda Bruta" (soma total de todas as vendas)
-    total_sales = [float(entry['total_sales']) for entry in total_sales_data]
     time_periods = [entry['time_period'].strftime('%Y-%m-%d') for entry in total_sales_data]
+    total_sales = {period['time_period'].strftime('%Y-%m-%d'): float(period['total_sales']) for period in total_sales_data}
 
     # Preparar os dados para a linha de "Renda por Seller"
     seller_sales_data = (
@@ -53,16 +56,28 @@ def sales_chart(request):
         .order_by('time_period', 'seller')
     )
 
-    sellers = list(set([entry['seller'] for entry in seller_sales_data]))  # Lista de vendedores únicos
-    seller_lines = {seller: [] for seller in sellers}  # Dicionário para armazenar as linhas de cada vendedor
+    sellers = set(entry['seller'] for entry in seller_sales_data)  # Lista de vendedores únicos
+    seller_sales_dict = {seller: {} for seller in sellers}
 
-    # Preencher as linhas de vendas por vendedor
+    for entry in seller_sales_data:
+        period = entry['time_period'].strftime('%Y-%m-%d')
+        seller = entry['seller']
+        seller_sales_dict[seller][period] = float(entry['total_sales'])
+
+    # Populate seller_lines with sales or 0 for each time period
+    seller_lines = {seller: [] for seller in sellers}
     for seller in sellers:
-        seller_sales = [
-            float(entry['total_sales']) if entry['seller'] == seller else 0
-            for entry in seller_sales_data
-        ]
-        seller_lines[seller] = seller_sales
+        for period in time_periods:
+            seller_lines[seller].append(seller_sales_dict[seller].get(period, 0))
+
+    # Verify that the sum of seller sales matches total_sales for each period
+    for i, period in enumerate(time_periods):
+        seller_sum = sum(seller_lines[seller][i] for seller in sellers)
+        if seller_sum != total_sales[period]:
+            print(f"Mismatch in period {period}: Total={total_sales[period]}, Sellers sum={seller_sum}")
+
+    # Prepare total_sales list in the same order as time_periods
+    total_sales_list = [total_sales.get(period, 0) for period in time_periods]
 
     # Criar o gráfico com ECharts
     chart_data = {
@@ -74,19 +89,8 @@ def sales_chart(request):
             "formatter": "{b}: {c}"
         },
         "legend": {
-            "data": ["Renda Bruta"] + sellers  # Adiciona a "Renda Bruta" e os vendedores
+            "data": ["Renda Bruta"] + list(sellers)  # Adiciona a "Renda Bruta" e os vendedores
         },
-        # "toolbox": {
-        #     "show": True,
-        #     "feature": {
-        #         "mySwitch": {
-        #             "show": True,
-        #             "title": "Alternar",
-        #             "icon": "path://M16 10H8V2H16ZM6 18H8V12H6ZM16 18H14V12H16Z",  # Ícone de alternância
-        #             "onclick": "function () { mySwitchFunction(); }"
-        #         }
-        #     }
-        # },
         "xAxis": {
             "type": "category",
             "data": time_periods
@@ -98,7 +102,7 @@ def sales_chart(request):
             {
                 "name": "Renda Bruta",  # Linha para a renda bruta
                 "type": "line",
-                "data": total_sales,
+                "data": total_sales_list,
                 "id": "total_sales"  # Identificador da série
             }
         ] + [
@@ -113,4 +117,24 @@ def sales_chart(request):
     }
 
     return JsonResponse(chart_data, safe=False)
-
+@role_required('user')
+@api_view(['GET'])
+def daily_sales(request):
+    # Get today's date
+    today = timezone.now().date()
+    
+    # Filter sales for today
+    sales_today = Sale.objects.filter(sale_date__date=today)
+    
+    # Calculate total sales
+    total_sales = sales_today.aggregate(total=Sum('total_price'))
+    total = total_sales['total'] or 0  # Default to 0 if no sales
+    
+    # Prepare response data
+    data = {
+        'date': today.strftime('%Y-%m-%d'),
+        'total_sales': float(total)
+    }
+    
+    # Return JSON response
+    return JsonResponse(data)
